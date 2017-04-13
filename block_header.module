@@ -1,0 +1,76 @@
+<?php
+
+use Drupal\Component\Render\FormattableMarkup;
+use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Render\Element;
+use Drupal\Core\Template\Attribute;
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function block_header_form_block_form_alter(&$form, FormStateInterface $form_state, $form_id) {
+  $build_info = $form_state->getBuildInfo();
+  /** @var \Drupal\block\BlockForm $block_form */
+  $block_form = $build_info['callback_object'];
+  /** @var \Drupal\block\Entity\Block $block */
+  $block = $block_form->getEntity();
+  $configuration = $block->getPlugin()->getConfiguration();
+
+  $form['settings']['block_header'] = [
+    '#type' => 'details',
+    '#title' => t('Header and footer'),
+    '#open' => !empty($configuration['block_header']) || !empty($configuration['block_footer']),
+  ];
+
+  $form['settings']['block_header']['block_header'] = [
+    '#type' => 'text_format',
+    '#title' => t('Header'),
+    '#format' => 'basic_html',
+    '#default_value' => isset($configuration['block_header']) ? $configuration['block_header'] : '',
+  ];
+
+  $form['settings']['block_header']['block_footer'] = [
+    '#type' => 'text_format',
+    '#title' => t('Footer'),
+    '#format' => 'basic_html',
+    '#default_value' => isset($configuration['block_footer']) ? $configuration['block_footer'] : '',
+  ];
+
+  array_unshift($form['actions']['submit']['#submit'], 'block_header_form_block_form_submit');
+}
+
+/**
+ * Form submission handler.
+ *
+ * Adds custom setting values to the block configuration.
+ *
+ * @param array $form
+ *   An associative array containing the structure of the plugin form as built
+ *   by static::buildConfigurationForm().
+ * @param \Drupal\Core\Form\FormStateInterface $form_state
+ *   The current state of the form. Calling code should pass on a subform
+ *   state created through
+ *   \Drupal\Core\Form\SubformState::createForSubform().
+ *
+ * @see block_header_form_block_form_alter()
+ */
+function block_header_form_block_form_submit($form, FormStateInterface &$form_state) {
+  $build_info = $form_state->getBuildInfo();
+  /** @var \Drupal\block\BlockForm $block_form */
+  $block_form = $build_info['callback_object'];
+  /** @var \Drupal\block\Entity\Block $block */
+  $block = $block_form->getEntity();
+
+  $block->getPlugin()->setConfigurationValue('block_header', $form_state->getValue(['settings', 'block_header', 'block_header']));
+  $block->getPlugin()->setConfigurationValue('block_footer', $form_state->getValue(['settings', 'block_header', 'block_footer']));
+}
+
+/**
+ * Implements hook_preprocess_HOOK().
+ */
+function block_header_preprocess_block(&$variables) {
+  $variables['header'] = !empty($variables['configuration']['block_header']['value']) ? new FormattableMarkup($variables['configuration']['block_header']['value'], []) : '';
+  $variables['footer'] = !empty($variables['configuration']['block_footer']['value']) ? new FormattableMarkup($variables['configuration']['block_footer']['value'], []) : '';
+  $variables['header_attributes'] = new Attribute();
+  $variables['footer_attributes'] = new Attribute();
+}
